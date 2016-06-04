@@ -1,0 +1,245 @@
+#include <LiquidCrystal_I2C.h>
+#include <Wire.h>
+
+/*-----( Declare Constants )-----*/
+const int buttonPin = 2;    // the number of the pushbutton Selector pin
+
+/*-----( Declare objects )-----*/
+// set the LCD address to 0x27 for a 16 chars 2 line display
+// A FEW use address 0x3F
+// Set the pins on the I2C chip used for LCD connections:
+//                    addr, en,rw,rs,d4,d5,d6,d7,bl,blpol
+LiquidCrystal_I2C lcd(0x27, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);  // Set the LCD I2C address
+
+/*-----( Declare Variables )-----*/
+int cupCount = 1;
+int waterIncup = 320; //how many grams of water are in a cup?
+int coffeeTowater = 18; //ratio of coffee to water
+int typeofPress;  //1 is short, 2 is long
+
+
+/*Declear functions - shouldn't be necessary for IDE, but it*/
+//state
+
+/*--------Notes from HB----*/
+//pins on the arduino for SDA and SDC are A4 and A5
+
+/*TOC
+  //3.  confirm selection, show Gs of coffee and water, pause to start timer
+  //4.  user starts timer - timer runs
+  //5.  timer runs, gives beeps/flashes at 30 secs.  Runs to 3:30 total
+  //6.  timer finishes, displays 'enjoy your coffee' and resets to beginning
+  //7.  allow for breaks that toss you back to the beginning.
+
+  //Program Start - Ask user for Desired Cup Size*/
+
+void setup()   /*----( SETUP: RUNS ONCE )----*/
+{
+  Serial.begin(9600);
+  pinMode(buttonPin, INPUT_PULLUP);
+  lcd.begin(16, 2);  // initialize the lcd for 16 chars 2 lines, turn on backlight
+
+  // ------- Quick 3 blinks of backlight  -------------
+  for (int i = 0; i < 3; i++)
+  {
+    lcd.backlight();
+    delay(250);
+    lcd.noBacklight();
+    delay(250);
+  }
+  lcd.backlight(); // finish with backlight on
+
+  //-------- Write characters on the display ------------------
+  // NOTE: Cursor Position: (CHAR, LINE) start at 0
+  lcd.setCursor(0, 0); //Start at character 4 on line 0
+  lcd.print("Hey Sleepy...");
+  delay(1000);
+  lcd.setCursor(0, 1);
+  lcd.print("... Coffee Time!");
+  delay(2000);
+
+
+
+}/*--(end setup )---*/
+
+
+void loop()   /*----( LOOP: RUNS CONSTANTLY )----*/
+{
+  cupCount = getcups();
+  Serial.print("after cupCount function - cupCount is: ");
+  Serial.print(cupCount);
+  showGrams();
+  dripTimer();
+
+}/* --(end main loop )-- */
+
+int getcups() {
+  // Wait and then get the desired number of cups to make from the user
+  int cupSelect = 0;
+  int buttonCheckresult = 0;
+
+  lcd.clear();
+  lcd.setCursor(0, 0); //Start at character 0 on line 0
+  lcd.print("How many cups?");
+
+  while (buttonCheckresult != 2) { //until user holds for the OK
+    buttonCheckresult = buttonCheck();
+    if (cupSelect > 9) {
+      cupSelect = 1;
+      lcd.setCursor(0, 1);
+      lcd.print("                ");
+    }
+    cupSelect++;
+    //now display the number of cups at the end of the question and in bars at the bottom of the screen
+    Serial.print("Cup Select ");
+    Serial.print(cupSelect);
+    lcd.setCursor(15, 0);
+    lcd.print(cupSelect); //print the selected number of cups
+    lcd.setCursor(cupSelect - 1, 1); //set cursor and write next block
+    lcd.write(1023);
+    delay(100);
+  }
+  cupSelect--;
+  return cupSelect;
+}
+
+void showGrams() {
+  int gramsCoffee;
+  int gramsWater;
+  int buttonCheckresult = 0;
+
+  gramsCoffee = cupCount * coffeeTowater;
+  gramsWater = cupCount * waterIncup;
+
+  //screen printout of the coffee grams
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Cups Coffee H20");
+  lcd.setCursor(1, 1);
+  lcd.print(cupCount);
+  lcd.setCursor(6, 1);
+  lcd.print(gramsCoffee);
+  lcd.print("g");
+  lcd.setCursor(11, 1);
+  if (gramsWater < 1000) lcd.setCursor(12, 1);
+  lcd.print(gramsWater);
+  lcd.print("g");
+
+  while (buttonCheckresult == 0) { //until user clicks
+    buttonCheckresult = buttonCheck();
+  }
+}
+
+void dripTimer() {
+  int buttonCheckresult = 0;
+
+   
+  lcd.clear();
+ 
+  lcd.print(" Click to start ");
+  lcd.setCursor(0, 1);
+  lcd.print("   the timer... ");
+  while (buttonCheckresult == 0) { //until user clicks
+    buttonCheckresult = buttonCheck();
+  
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Add 50g water to");
+  lcd.setCursor(0, 1);
+  lcd.print(" bloom for 30s. ");
+  for (int i = 20; i > 0; i--) {
+    delay(1000);
+    }
+  lcd.clear();
+  
+  lcd.print("10 seconds left!");
+   for (int i = 10; i > 0; i--) {
+    delay(1000);
+    }
+  lcd.clear();
+ 
+  lcd.print(" Now, add water ");
+  lcd.setCursor(0, 1);
+  lcd.print(" to brew 3 min. ");
+  for (int i = 120; i > 0; i--) {
+    delay(1000);
+  }
+   lcd.clear();
+
+   lcd.print("One minute left!");
+  for (int i = 30; i > 0; i--) {
+    delay(1000);
+  }
+   lcd.clear();
+    
+    lcd.print("Thirty seconds!");
+  for (int i = 20; i > 0; i--) {
+    delay(1000);
+  }
+   lcd.clear();
+
+       lcd.print("   Ten seconds! ");
+  for (int i = 10; i > 0; i--) {
+    delay(1000);
+  }
+   lcd.clear();
+
+   lcd.print("   It's ready!  ");
+    
+  while (buttonCheckresult == 0) { //until user clicks
+    buttonCheckresult = buttonCheck();
+    }
+  }
+}
+
+int buttonCheck() {
+
+  //We  need  to  track how long  the momentary pushbutton  is  held  for in  order to  exectute different commands
+  //This  value will  be  recorded  in  seconds
+  float pressLength_milliSeconds  = 0;
+  //  Define  the *minimum* length  of  time, in  milli-seconds,  that  the button  must  be pressed for a particular  option  to  occur
+  int optionOne_milliSeconds  = 100;
+  int optionTwo_milliSeconds  = 1000;
+
+  typeofPress = 0;
+
+  while (typeofPress == 0) { //until user holds for OK
+
+    //Record  *roughly* the of  tenths  of  seconds the button  in  being held  down
+    while (digitalRead(buttonPin) ==  LOW ) {
+      delay(100);   //if  you want  more  resolution, lower this  number
+      pressLength_milliSeconds  = pressLength_milliSeconds  + 100;
+      //display how long  button  is  has been  held
+      Serial.print("ms  = ");
+      Serial.println(pressLength_milliSeconds);
+    }//close  while
+
+    //Different if-else conditions  are triggered based on  the length  of  the button  press
+    //Start with  the longest time  option  first
+
+    //Option  2 - Execute the second  option  if  the button  is  held  for the correct amount  of  time
+    if  (pressLength_milliSeconds >=  optionTwo_milliSeconds) {
+      typeofPress = 2;
+    }
+
+    //option  1 - Execute the first option  if  the button  is  held  for the correct amount  of  time
+    else  if (pressLength_milliSeconds >=  optionOne_milliSeconds) {
+      typeofPress = 1;
+    }
+    //close  if  options
+
+    //every time  through the loop, we  need  to  reset the pressLength_Seconds counter
+    pressLength_milliSeconds  = 0;
+  }
+  Serial.print("ButtonCheck Function: ");
+  Serial.print(typeofPress);
+  return (typeofPress);
+}
+
+
+
+
+
+
+
+
